@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored) for local plans. CI uses the ALERT_EMAIL secret instead.
+alert_email = "you@example.com"
