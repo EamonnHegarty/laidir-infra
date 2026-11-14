@@ -1,0 +1,70 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "envs/**"
+      - "modules/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# Never run two applies against the same state at once; never cancel one mid-apply.
+concurrency:
+  group: terraform-apply-prod
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: 1.14.7
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+  AWS_REGION: eu-west-1
+
+jobs:
+  apply:
+    name: apply (prod)
+    runs-on: ubuntu-latest
+    # The apply role only trusts `environment:prod`, so this line is what unlocks AWS.
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: envs/prod
+    env:
+      TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          role-session-name: laidir-apply-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      # Re-plan against current state rather than trusting the PR's plan, which may be stale.
+      - name: terraform plan
+        id: plan
+        run: |
+          terraform plan -input=false -lock-timeout=120s -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          terraform show -json tfplan > plan.json
+
+      - name: Plan summary
+        run: |
+          bash "${GITHUB_WORKSPACE}/.github/scripts/render-plan.sh" prod success plan.json plan.txt plan.md
+          cat plan.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform apply
+        run: terraform apply -input=false -lock-timeout=120s tfplan
