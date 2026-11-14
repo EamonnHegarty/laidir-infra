@@ -43,6 +43,7 @@ variable "lambda_functions" {
 variable "alert_email" {
   description = "Email address that receives AWS Budgets notifications. Set in terraform.tfvars (gitignored)."
   type        = string
+  sensitive   = true
 }
 
 variable "monthly_budget_usd" {
