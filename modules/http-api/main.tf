@@ -98,10 +98,29 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  # Default limits apply to each route individually (authenticated /v1 traffic).
   default_route_settings {
     throttling_burst_limit = var.throttling_burst_limit
     throttling_rate_limit  = var.throttling_rate_limit
   }
+
+  # Tighter limits on routes that reach a Lambda WITHOUT a gateway auth check,
+  # which caps what anonymous traffic can cost.
+  dynamic "route_settings" {
+    for_each = var.public_route_throttling
+    content {
+      route_key              = route_settings.key
+      throttling_burst_limit = route_settings.value.burst
+      throttling_rate_limit  = route_settings.value.rate
+    }
+  }
+
+  # Route settings fail if the route doesn't exist yet.
+  depends_on = [
+    aws_apigatewayv2_route.health,
+    aws_apigatewayv2_route.mcp,
+    aws_apigatewayv2_route.protected_resource_metadata,
+  ]
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.access.arn
