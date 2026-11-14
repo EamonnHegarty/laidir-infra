@@ -6,7 +6,14 @@ Terraform for Láidir (workout tracker + Claude MCP connector). Sibling repos: `
 - **GitHub:** only ever act on repos owned by `EamonnHegarty`. Never touch any org (especially Phorest).
 - **AWS:** never run `terraform apply`, `destroy`, `import`, `state` commands or anything that changes AWS.
   Locally run only `terraform fmt`, `terraform init -backend=false`, `terraform validate`. The human applies.
+  Read-only AWS CLI calls (describe/get/list, CloudTrail lookups) with `AWS_PROFILE=fitness-admin` are fine without asking.
 - **No long-lived credentials anywhere.** Humans use SSO (`AWS_PROFILE=fitness-admin`); CI uses GitHub OIDC.
+- **Secrets never go through Terraform variables, outputs or Lambda env vars.** Plans and Actions logs are public
+  (public repo). Store secrets in SSM Parameter Store (SecureString) or Secrets Manager and read them at runtime.
+  If a secret unavoidably passes through Terraform, mark it `sensitive = true`.
+- **GitHub Actions are pinned to full commit SHAs** with a `# vX.Y.Z` comment; Dependabot bumps them. Never use a bare tag.
+- **OIDC trust uses GitHub's immutable subjects:** `repo:<owner>@<owner_id>/<repo>@<repo_id>:...`. Check a repo's
+  format with `gh api repos/<owner>/<repo>/actions/oidc/customization/sub` before writing a trust policy.
 - **Cost target is about €0/month.** No NAT Gateway, ALB, RDS, VPC, provisioned or always-on compute, or customer-managed KMS keys
   without an explicit decision.
 - Commits are small and logically grouped; the author is the user, with a `Co-Authored-By: Claude` trailer.

@@ -81,6 +81,9 @@ merge to main ───────► re-plan + apply (apply role, GitHub Envir
 - The plan comment is updated in place on each push, and flags destroys and replaces with a warning.
 - Deploy re-plans against live state instead of reusing the PR's plan, so a stale plan can't be applied.
 - Applies are serialised with a concurrency group and never cancelled mid-run.
+- Every third-party action is pinned to a full commit SHA (Dependabot keeps them current), so a hijacked tag can't
+  run code with our AWS credentials. The PR comment is posted with the runner's built-in `gh`, not an extra action.
+- Workflows from outside contributors need manual approval, and the default `GITHUB_TOKEN` is read-only.
 
 ### Security model
 
