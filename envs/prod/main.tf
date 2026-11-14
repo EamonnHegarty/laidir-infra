@@ -19,10 +19,12 @@ module "table" {
 module "auth" {
   source = "../../modules/auth"
 
-  name                       = local.name
-  user_pool_tier             = "ESSENTIALS"
-  deletion_protection        = true
-  allow_self_signup          = true
+  name                = local.name
+  user_pool_tier      = "ESSENTIALS"
+  deletion_protection = true
+  # Invite-only until public launch: blocks bot sign-ups. Invite users with
+  # `aws cognito-idp admin-create-user` (see README). Flip to true to open sign-up.
+  allow_self_signup          = false
   mobile_callback_urls       = var.mobile_callback_urls
   mobile_logout_urls         = var.mobile_logout_urls
   claude_client_confidential = var.claude_client_confidential
