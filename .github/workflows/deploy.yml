@@ -3,10 +3,13 @@ name: deploy
 on:
   push:
     branches: [main]
+    # Only infra changes trigger a deploy run. Docs, lint config and the PR workflow don't.
+    # deploy.yml itself is included so a change to the deploy logic is exercised straight away.
     paths:
       - "envs/**"
       - "modules/**"
       - ".github/workflows/deploy.yml"
+      - ".github/scripts/render-plan.sh"
   workflow_dispatch:
 
 permissions: {}
@@ -54,10 +57,16 @@ jobs:
         run: terraform init -input=false
 
       # Re-plan against current state rather than trusting the PR's plan, which may be stale.
+      # -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes present.
       - name: terraform plan
         id: plan
         run: |
-          terraform plan -input=false -lock-timeout=120s -out=tfplan
+          set +e
+          terraform plan -input=false -lock-timeout=120s -detailed-exitcode -out=tfplan
+          code=$?
+          set -e
+          if [[ $code -eq 1 ]]; then exit 1; fi
+          echo "has_changes=$([[ $code -eq 2 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           terraform show -no-color tfplan > plan.txt
           terraform show -json tfplan > plan.json
 
@@ -66,5 +75,12 @@ jobs:
           bash "${GITHUB_WORKSPACE}/.github/scripts/render-plan.sh" prod success plan.json plan.txt plan.md
           cat plan.md >> "$GITHUB_STEP_SUMMARY"
 
+      # Merges that only touch CI or docs still run the plan (proving prod matches main),
+      # but there is nothing to apply.
       - name: terraform apply
+        if: steps.plan.outputs.has_changes == 'true'
         run: terraform apply -input=false -lock-timeout=120s tfplan
+
+      - name: Skip apply (no changes)
+        if: steps.plan.outputs.has_changes != 'true'
+        run: echo "✅ No infrastructure changes, apply skipped." >> "$GITHUB_STEP_SUMMARY"
