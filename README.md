@@ -86,9 +86,13 @@ merge to main ───────► re-plan + apply (apply role, GitHub Envir
 
 | Role | Trusted for (OIDC `sub`) | Can do |
 |---|---|---|
-| `laidir-gha-infra-plan` | `repo:EamonnHegarty/laidir-infra:pull_request` | Read-only, plus write state lock files |
-| `laidir-gha-infra-apply` | `repo:EamonnHegarty/laidir-infra:environment:prod` | Read-only, plus writes scoped to `laidir-prod-*` |
-| `laidir-gha-api-deploy-prod` | `repo:EamonnHegarty/laidir-api:environment:prod` | `lambda:UpdateFunctionCode` on the two functions, nothing else |
+| `laidir-gha-infra-plan` | `repo:EamonnHegarty@91144434/laidir-infra@1457972060:pull_request` | Read-only, plus write state lock files |
+| `laidir-gha-infra-apply` | `repo:EamonnHegarty@91144434/laidir-infra@1457972060:environment:prod` | Read-only, plus writes scoped to `laidir-prod-*` |
+| `laidir-gha-api-deploy-prod` | `repo:…/laidir-api@<id>:environment:prod` | `lambda:UpdateFunctionCode` on the two functions, nothing else |
+
+GitHub issues **immutable subject claims** for these repos: owner and repo numeric IDs are part of `sub`. If a repo is
+deleted and someone recreates one with the same name, it gets a new ID and can't assume these roles.
+Check a repo's format with `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`.
 
 - **No long-lived keys anywhere.** Humans use IAM Identity Center (SSO); CI uses OIDC.
 - **Permissions boundary.** The apply role can only create IAM roles that carry `laidir-workload-boundary`,

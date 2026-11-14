@@ -10,6 +10,14 @@ locals {
   infra_repo_full = "${var.github_owner}/${var.infra_repo}"
   api_repo_full   = "${var.github_owner}/${var.api_repo}"
 
+  # GitHub immutable OIDC subjects: `repo:<owner>@<owner_id>/<repo>@<repo_id>`.
+  # Numeric IDs survive renames, so a deleted-and-recreated repo with the same
+  # name can never inherit this trust. Check a repo's format with:
+  #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+  infra_sub_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.infra_repo}@${var.infra_repo_id}"
+  # laidir-api doesn't exist yet. Until its ID is set, fall back to the name-based subject.
+  api_sub_prefix = var.api_repo_id == null ? "repo:${local.api_repo_full}" : "repo:${var.github_owner}@${var.github_owner_id}/${var.api_repo}@${var.api_repo_id}"
+
   arn_region = "${var.region}:${var.account_id}"
 
   # Resource patterns per environment prefix (laidir-prod, ...)
@@ -299,7 +307,7 @@ module "infra_plan_role" {
   name              = "${local.prefix}-gha-infra-plan"
   description       = "Read-only plan for pull requests on ${local.infra_repo_full}."
   oidc_provider_arn = aws_iam_openid_connect_provider.github.arn
-  subjects          = ["repo:${local.infra_repo_full}:pull_request"]
+  subjects          = ["${local.infra_sub_prefix}:pull_request"]
 
   managed_policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
   inline_policies = {
@@ -314,7 +322,7 @@ module "infra_apply_role" {
   name              = "${local.prefix}-gha-infra-apply"
   description       = "Apply on merge to main for ${local.infra_repo_full}, gated by GitHub Environments."
   oidc_provider_arn = aws_iam_openid_connect_provider.github.arn
-  subjects          = [for env in var.environments : "repo:${local.infra_repo_full}:environment:${env}"]
+  subjects          = [for env in var.environments : "${local.infra_sub_prefix}:environment:${env}"]
 
   managed_policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
   inline_policies = {
@@ -346,7 +354,7 @@ module "api_deploy_role" {
   name              = "${local.prefix}-gha-api-deploy-${each.key}"
   description       = "Lets ${local.api_repo_full} update Lambda code in ${each.key} (and nothing else)."
   oidc_provider_arn = aws_iam_openid_connect_provider.github.arn
-  subjects          = ["repo:${local.api_repo_full}:environment:${each.key}"]
+  subjects          = ["${local.api_sub_prefix}:environment:${each.key}"]
 
   inline_policies = {
     update-function-code = data.aws_iam_policy_document.api_deploy[each.key].json

@@ -16,6 +16,24 @@ variable "github_owner" {
   default     = "EamonnHegarty"
 }
 
+variable "github_owner_id" {
+  description = "Numeric GitHub user ID of github_owner (used in immutable OIDC subjects)."
+  type        = number
+  default     = 91144434
+}
+
+variable "infra_repo_id" {
+  description = "Numeric GitHub repository ID of the infra repo (immutable OIDC subject)."
+  type        = number
+  default     = 1457972060
+}
+
+variable "api_repo_id" {
+  description = "Numeric GitHub repository ID of the API repo. Null until the repo exists; set it before laidir-api CI deploys."
+  type        = number
+  default     = null
+}
+
 variable "infra_repo" {
   description = "Name of this Terraform repo."
   type        = string
