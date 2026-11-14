@@ -8,6 +8,8 @@ resource "aws_s3_bucket" "state" {
   #checkov:skip=CKV_AWS_144:Cross-region replication is not worth the cost for a single-developer state bucket; versioning covers recovery.
   #checkov:skip=CKV_AWS_145:SSE-S3 (AES256) is used deliberately; a customer-managed KMS key adds ~$1/month for no practical gain here.
   #checkov:skip=CKV2_AWS_62:Event notifications are not needed for a state bucket.
+  #checkov:skip=CKV_AWS_21:False positive. Versioning is enabled by aws_s3_bucket_versioning.state below; newer Checkov releases don't link the separate resource.
+  #checkov:skip=CKV_AWS_19:False positive. SSE is configured by aws_s3_bucket_server_side_encryption_configuration.state below (and S3 encrypts all new objects by default).
   bucket = "laidir-tfstate-${var.account_id}"
 
   # State is the one thing that must never be deleted by accident.
