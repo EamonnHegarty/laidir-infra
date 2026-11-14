@@ -1,0 +1,8 @@
+# Checkov config. Individual exceptions are documented inline next to the
+# resource with `#checkov:skip=<ID>:<reason>` so the justification lives with the code.
+framework:
+  - terraform
+  - github_actions
+compact: true
+quiet: true
+download-external-modules: false
