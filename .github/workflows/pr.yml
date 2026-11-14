@@ -23,9 +23,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -43,7 +43,7 @@ jobs:
             echo "::endgroup::"
           done
 
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
 
       - name: tflint
         run: |
@@ -53,7 +53,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: checkov
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
         with:
           directory: .
           config_file: .checkov.yaml
@@ -78,16 +78,16 @@ jobs:
     env:
       TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::670518205160:role/laidir-gha-infra-plan
           role-session-name: laidir-plan-pr${{ github.event.pull_request.number }}
           aws-region: ${{ env.AWS_REGION }}
 
@@ -112,25 +112,26 @@ jobs:
             "${{ matrix.env }}" "${{ steps.plan.outcome }}" plan.json plan.txt plan.md
           cat plan.md >> "$GITHUB_STEP_SUMMARY"
 
+      # Uses the preinstalled gh CLI rather than a third-party action: one less dependency
+      # with access to the token. Always posts something, even if earlier steps failed.
       - name: Post or update PR comment
         if: always()
-        uses: actions/github-script@v7
         env:
-          PLAN_FILE: envs/${{ matrix.env }}/plan.md
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           MARKER: "<!-- laidir-plan:${{ matrix.env }} -->"
-        with:
-          script: |
-            const fs = require('fs');
-            const body = fs.readFileSync(process.env.PLAN_FILE, 'utf8');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
-            const existing = comments.find(c => c.user.type === 'Bot' && c.body.startsWith(process.env.MARKER));
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
+          ENV_NAME: ${{ matrix.env }}
+        run: |
+          if [[ ! -s plan.md ]]; then
+            printf '%s\n## Terraform plan: `%s`\n\n❌ The plan produced no output. See the job log.\n' "$MARKER" "$ENV_NAME" > plan.md
+          fi
+          comment_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.user.type == \"Bot\" and (.body | startswith(\"${MARKER}\"))) | .id" | head -n1)
+          if [[ -n "$comment_id" ]]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" -F body=@plan.md > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -F body=@plan.md > /dev/null
+          fi
 
       - name: Fail if plan failed
         if: steps.plan.outcome != 'success'
