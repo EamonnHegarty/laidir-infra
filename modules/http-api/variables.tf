@@ -41,6 +41,20 @@ variable "throttling_rate_limit" {
   default     = 10
 }
 
+variable "public_route_throttling" {
+  description = "Per-route limits for routes without a gateway authorizer (key = route key). Caps the cost of anonymous traffic."
+  type = map(object({
+    burst = number
+    rate  = number
+  }))
+  default = {
+    "GET /health"                                        = { burst = 2, rate = 1 }
+    "ANY /mcp"                                           = { burst = 10, rate = 3 }
+    "GET /.well-known/oauth-protected-resource"          = { burst = 2, rate = 1 }
+    "GET /.well-known/oauth-protected-resource/{proxy+}" = { burst = 2, rate = 1 }
+  }
+}
+
 variable "log_retention_days" {
   description = "Access log retention in days."
   type        = number

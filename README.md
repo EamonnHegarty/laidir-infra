@@ -168,6 +168,21 @@ terraform output
 
 After that, every change goes through a PR.
 
+## Inviting users
+
+Sign-up is **invite-only** for now (`allow_self_signup = false` in `envs/prod`), which blocks bot sign-ups before launch.
+To invite someone (Cognito emails them a temporary password, which they change on first sign-in):
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id "$(terraform -chdir=envs/prod output -raw cognito_issuer | awk -F/ '{print $NF}')" \
+  --username friend@example.com \
+  --user-attributes Name=email,Value=friend@example.com Name=email_verified,Value=true \
+  --desired-delivery-mediums EMAIL
+```
+
+To open sign-up to everyone, set `allow_self_signup = true` and merge.
+
 ## Claude connector
 
 The MCP server sits behind Cognito. Cognito doesn't support Dynamic Client Registration, so Claude uses a
