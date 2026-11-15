@@ -85,6 +85,26 @@ data "aws_iam_policy_document" "breaker" {
     actions   = ["apigateway:GET", "apigateway:PATCH"]
     resources = [local.stage_arn]
   }
+
+  # Found in the end-to-end test: UpdateStage on a stage with access logging
+  # re-validates the log delivery, even when only throttles change. These
+  # actions have no resource-level scoping.
+  statement {
+    #checkov:skip=CKV_AWS_111:Log delivery actions don't support resource-level permissions.
+    #checkov:skip=CKV_AWS_356:Log delivery actions don't support resource-level permissions.
+    sid = "AccessLogDeliveryRevalidation"
+    actions = [
+      "logs:CreateLogDelivery",
+      "logs:GetLogDelivery",
+      "logs:UpdateLogDelivery",
+      "logs:DeleteLogDelivery",
+      "logs:ListLogDeliveries",
+      "logs:PutResourcePolicy",
+      "logs:DescribeResourcePolicies",
+      "logs:DescribeLogGroups",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "breaker" {

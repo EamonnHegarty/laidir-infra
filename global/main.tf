@@ -73,6 +73,24 @@ data "aws_iam_policy_document" "workload_boundary" {
     actions   = ["apigateway:GET", "apigateway:PATCH"]
     resources = ["arn:aws:apigateway:${var.region}::/apis/*/stages/*"]
   }
+
+  # UpdateStage on a stage with access logging re-validates the log delivery, which needs
+  # these CloudWatch Logs actions (they have no resource-level scoping).
+  statement {
+    sid    = "CircuitBreakerAccessLogDelivery"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogDelivery",
+      "logs:GetLogDelivery",
+      "logs:UpdateLogDelivery",
+      "logs:DeleteLogDelivery",
+      "logs:ListLogDeliveries",
+      "logs:PutResourcePolicy",
+      "logs:DescribeResourcePolicies",
+      "logs:DescribeLogGroups",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "workload_boundary" {
