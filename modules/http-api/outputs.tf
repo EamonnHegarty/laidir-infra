@@ -12,3 +12,8 @@ output "mcp_url" {
   description = "MCP server URL to paste into Claude's custom connector dialog."
   value       = "${aws_apigatewayv2_api.this.api_endpoint}/mcp"
 }
+
+output "stage_name" {
+  description = "Name of the API stage ($default)."
+  value       = aws_apigatewayv2_stage.default.name
+}

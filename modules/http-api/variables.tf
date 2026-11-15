@@ -48,6 +48,7 @@ variable "public_route_throttling" {
     rate  = number
   }))
   default = {
+    "$default"                                           = { burst = 2, rate = 1 }
     "GET /health"                                        = { burst = 2, rate = 1 }
     "ANY /mcp"                                           = { burst = 10, rate = 3 }
     "GET /.well-known/oauth-protected-resource"          = { burst = 2, rate = 1 }
