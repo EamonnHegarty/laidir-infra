@@ -64,6 +64,15 @@ data "aws_iam_policy_document" "workload_boundary" {
     actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
     resources = ["*"]
   }
+
+  # The cost circuit breaker reads and zeroes HTTP API stage throttles (GetStage/UpdateStage).
+  # The role's own policy narrows this to the one stage it protects.
+  statement {
+    sid       = "CircuitBreakerStageThrottle"
+    effect    = "Allow"
+    actions   = ["apigateway:GET", "apigateway:PATCH"]
+    resources = ["arn:aws:apigateway:${var.region}::/apis/*/stages/*"]
+  }
 }
 
 resource "aws_iam_policy" "workload_boundary" {
