@@ -15,7 +15,7 @@ locals {
   # name can never inherit this trust. Check a repo's format with:
   #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
   infra_sub_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.infra_repo}@${var.infra_repo_id}"
-  # laidir-api doesn't exist yet. Until its ID is set, fall back to the name-based subject.
+  # Falls back to the name-based subject only if api_repo_id is unset.
   api_sub_prefix = var.api_repo_id == null ? "repo:${local.api_repo_full}" : "repo:${var.github_owner}@${var.github_owner_id}/${var.api_repo}@${var.api_repo_id}"
 
   arn_region = "${var.region}:${var.account_id}"
