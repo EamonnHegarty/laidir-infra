@@ -63,6 +63,18 @@ resource "aws_apigatewayv2_route" "v1" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# Catch-all for paths that match no other route. Without it, unmatched requests fall
+# outside every per-route throttle (only the account-wide limit applies). With it,
+# they hit a 1 rps limit and the api Lambda answers 404.
+# NOTE for laidir-api: this reaches the api Lambda WITHOUT a gateway auth check, so
+# the handler must only serve /v1 logic when routeKey is "ANY /v1/{proxy+}".
+resource "aws_apigatewayv2_route" "catch_all" {
+  #checkov:skip=CKV_AWS_309:Catch-all only returns 404; it exists to bring unmatched paths under a throttle.
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_apigatewayv2_route" "mcp" {
   #checkov:skip=CKV_AWS_309:Auth is enforced in the MCP Lambda so it can return the 401 + WWW-Authenticate header Claude requires.
   api_id    = aws_apigatewayv2_api.this.id
@@ -117,6 +129,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
   # Route settings fail if the route doesn't exist yet.
   depends_on = [
+    aws_apigatewayv2_route.catch_all,
     aws_apigatewayv2_route.health,
     aws_apigatewayv2_route.mcp,
     aws_apigatewayv2_route.protected_resource_metadata,
