@@ -29,15 +29,17 @@ export const handler = async (event) => {
   const stage = await client.send(new GetStageCommand({ ApiId: API_ID, StageName: STAGE_NAME }));
 
   // Routes with their own settings must be zeroed individually; the rest inherit the default.
+  // Send ONLY the throttle fields: echoing back logging fields from GetStage makes
+  // API Gateway treat the call as a logging change (needs logs:CreateLogDelivery).
   const routeSettings = Object.fromEntries(
-    Object.entries(stage.RouteSettings ?? {}).map(([routeKey, settings]) => [routeKey, { ...settings, ...OFF }]),
+    Object.keys(stage.RouteSettings ?? {}).map((routeKey) => [routeKey, { ...OFF }]),
   );
 
   await client.send(
     new UpdateStageCommand({
       ApiId: API_ID,
       StageName: STAGE_NAME,
-      DefaultRouteSettings: { ...stage.DefaultRouteSettings, ...OFF },
+      DefaultRouteSettings: { ...OFF },
       RouteSettings: routeSettings,
     }),
   );
