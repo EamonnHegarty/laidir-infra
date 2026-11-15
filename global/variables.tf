@@ -29,9 +29,9 @@ variable "infra_repo_id" {
 }
 
 variable "api_repo_id" {
-  description = "Numeric GitHub repository ID of the API repo. Null until the repo exists; set it before laidir-api CI deploys."
+  description = "Numeric GitHub repository ID of the API repo (immutable OIDC subject)."
   type        = number
-  default     = null
+  default     = 1458628544
 }
 
 variable "infra_repo" {
