@@ -124,7 +124,42 @@ Terraform creates each function with placeholder code and ignores code changes
 | Budgets | first 2 budgets free | €0 |
 
 Guard rails: an account budget (€5, created by `global/`), the organization-wide €10 budget in the management account,
-throttling on the API stage, and short log retention.
+throttling on every API route (including a `$default` catch-all for unmatched paths), the cost circuit breaker below,
+and short log retention.
+
+### Circuit breaker
+
+Throttles cap the **rate** of abuse; the circuit breaker caps the **duration**, which matters because Budgets lag by hours.
+
+```
+API Count > 3,000 in 5 min (normal use ≈ 100)
+  → alarm laidir-prod-api-request-flood
+      → SNS → laidir-prod-circuit-breaker Lambda → every route's throttle set to 0 (API answers 429)
+      → SNS → email to the owner
+```
+
+| Route | Normal limit (rps / burst) |
+|---|---|
+| `GET /health`, `.well-known/*`, `$default` (unmatched paths) | 1 / 2 |
+| `ANY /mcp` | 3 / 10 |
+| `ANY /v1/{proxy+}` (JWT at the gateway) | 10 / 20 |
+
+At those limits, a full night of maxed-out abuse costs cents, and a whole unnoticed month costs about €30. The breaker
+stops it within ~10 minutes regardless.
+
+**Reset after a trip:**
+1. Check the access logs (`/aws/apigateway/laidir-prod-access`) to see what happened.
+2. Wait until the alarm is back to `OK` (traffic has stopped). If you reset while it's still in `ALARM`, it can't
+   trip again, because alarms only act on state *changes*.
+3. Re-run the deploy workflow; Terraform sees the zeroed throttles as drift and restores them:
+   ```bash
+   gh workflow run deploy.yml --repo EamonnHegarty/laidir-infra
+   ```
+
+**Test it** (takes the API down until reset):
+```bash
+aws cloudwatch set-alarm-state --alarm-name laidir-prod-api-request-flood --state-value ALARM --state-reason "manual test"
+```
 
 Deliberately **not** used: NAT Gateway (~€35/month), ALB, RDS, provisioned concurrency, customer-managed KMS keys
 (~€1/month each; AWS-owned keys are used instead, with Checkov exceptions documented inline).
