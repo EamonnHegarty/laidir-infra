@@ -9,7 +9,8 @@ first; keys follow from them. Change keys or indexes only after updating this do
 |---|---|
 | Profile | One per user: display name, units (kg/lb), preferences |
 | Exercise | A user's **custom** exercise. The built-in catalogue is static, versioned JSON shipped with the API and app, not stored here |
-| Routine | A workout template: ordered exercises with target sets, reps and weight. Created in the app or via Claude (MCP) |
+| Routine | A workout template: ordered exercises with target sets, reps and weight. Created in the app or via Claude (MCP). Optionally filed in a folder (`folder_id`) and ordered by `sort_order` |
+| RoutineFolder | A user-named group of routines, ordered by `sort_order` |
 | Workout | A logged session. Sets are **embedded** in the item (a heavy session is a few KB, far under the 400 KB limit) |
 
 ## Keys
@@ -19,6 +20,7 @@ first; keys follow from them. Change keys or indexes only after updating this do
 | Profile | `USER#<sub>` | `PROFILE` | – | `USER#<sub>` / `<synced_at>#PROFILE#<sub>` |
 | Exercise | `USER#<sub>` | `EXERCISE#<uuid>` | – | `USER#<sub>` / `<synced_at>#EXERCISE#<uuid>` |
 | Routine | `USER#<sub>` | `ROUTINE#<uuid>` | – | `USER#<sub>` / `<synced_at>#ROUTINE#<uuid>` |
+| RoutineFolder | `USER#<sub>` | `ROUTINE_FOLDER#<uuid>` | – | `USER#<sub>` / `<synced_at>#ROUTINE_FOLDER#<uuid>` |
 | Workout | `USER#<sub>` | `WORKOUT#<uuid>` | `USER#<sub>#WORKOUT` / `<started_at>#<uuid>` | `USER#<sub>` / `<synced_at>#WORKOUT#<uuid>` |
 
 `<sub>` is the Cognito user ID, **always taken from the verified JWT, never from the request**.
@@ -31,11 +33,21 @@ first; keys follow from them. Change keys or indexes only after updating this do
 | 1 | Get or update the user's profile | `GetItem/PutItem PK=USER#<sub>, SK=PROFILE` |
 | 2 | List the user's custom exercises | `Query PK=USER#<sub>, SK begins_with EXERCISE#` |
 | 3 | List the user's routines | `Query PK=USER#<sub>, SK begins_with ROUTINE#` |
-| 4 | Get or upsert any item by client UUID | `GetItem/PutItem PK=USER#<sub>, SK=<TYPE>#<uuid>` |
-| 5 | Workout history, newest first, paginated | `Query GSI1 PK=USER#<sub>#WORKOUT, ScanIndexForward=false` |
-| 6 | Workouts in a date range | `Query GSI1 … SK BETWEEN <from> AND <to>` |
-| 7 | **Sync:** everything changed since a cursor, including deletes | `Query GSI2 PK=USER#<sub>, SK > <cursor>` |
-| 8 | Delete account (GDPR) | `Query PK=USER#<sub>` + `BatchWriteItem` deletes |
+| 4 | List the user's routine folders | `Query PK=USER#<sub>, SK begins_with ROUTINE_FOLDER#` |
+| 5 | Get or upsert any item by client UUID | `GetItem/PutItem PK=USER#<sub>, SK=<TYPE>#<uuid>` |
+| 6 | Workout history, newest first, paginated | `Query GSI1 PK=USER#<sub>#WORKOUT, ScanIndexForward=false` |
+| 7 | Workouts in a date range | `Query GSI1 … SK BETWEEN <from> AND <to>` |
+| 8 | **Sync:** everything changed since a cursor, including deletes | `Query GSI2 PK=USER#<sub>, SK > <cursor>` |
+| 9 | Delete account (GDPR) | `Query PK=USER#<sub>` + `BatchWriteItem` deletes |
+
+**`begins_with ROUTINE#` deliberately excludes folders.** Folder keys are `ROUTINE_FOLDER#…`, and `_` isn't `#`,
+so listing routines (pattern 3) never returns folders. Keep the `#` in every prefix query: `begins_with ROUTINE`
+without it would match both.
+
+**Folders are a client-side grouping, not a server-enforced relationship.** Deleting a folder tombstones the folder
+and the client pushes each of its routines with `folder_id` removed. The server never checks `folder_id`; readers
+treat one that points to a missing or deleted folder as unfiled, because sync isn't atomic across items.
+Folders and routines in a folder are ordered by `sort_order` in the app (no index needed at this scale).
 
 **Why the SK uses the UUID, not the date:** a user editing a workout's date must not change its primary key.
 Otherwise the old item is orphaned and offline sync breaks. Date ordering comes from GSI1 instead.
@@ -54,7 +66,7 @@ To avoid racing in-flight writes, pull only returns items with `synced_at` a cou
 | Attribute | Purpose |
 |---|---|
 | `id` | Client UUID (duplicated from the SK for convenience) |
-| `type` | `PROFILE`, `EXERCISE`, `ROUTINE`, `WORKOUT` |
+| `type` | `PROFILE`, `EXERCISE`, `ROUTINE`, `ROUTINE_FOLDER`, `WORKOUT` |
 | `schema_version` | Version of the JSON schema (owned by `laidir-api`) the item was written with |
 | `created_at`, `updated_at` | ISO-8601 UTC, set by the client. `updated_at` drives conflict resolution |
 | `synced_at` | ISO-8601 UTC, set by the **server** on every accepted write. Drives the sync feed (GSI2SK). Not exposed in the API schemas |
