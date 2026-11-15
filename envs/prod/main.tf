@@ -118,3 +118,15 @@ module "observability" {
   api_id         = module.http_api.api_id
   table_name     = module.table.name
 }
+
+# Cost circuit breaker: if requests flood in, throttle everything to 0 within ~5-10 min.
+module "circuit_breaker" {
+  source = "../../modules/circuit-breaker"
+
+  name                     = local.name
+  api_id                   = module.http_api.api_id
+  stage_name               = module.http_api.stage_name
+  request_threshold        = 3000
+  alerts_topic_arn         = module.observability.alerts_topic_arn
+  permissions_boundary_arn = data.aws_iam_policy.workload_boundary.arn
+}

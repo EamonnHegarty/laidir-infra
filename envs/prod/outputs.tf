@@ -40,3 +40,8 @@ output "lambda_function_names" {
     mcp = module.mcp_function.function_name
   }
 }
+
+output "circuit_breaker_alarm" {
+  description = "Alarm that trips the cost circuit breaker (see README: Circuit breaker)."
+  value       = module.circuit_breaker.alarm_name
+}
