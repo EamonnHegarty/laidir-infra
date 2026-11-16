@@ -218,6 +218,13 @@ aws cognito-idp admin-create-user \
 
 To open sign-up to everyone, set `allow_self_signup = true` and merge.
 
+## Testing the API with real tokens
+
+A third Cognito client, `laidir-prod-devtools` (output `devtools_client_id`), is a public PKCE client whose only
+redirect is `http://localhost:8976/callback`. The `/v1` JWT authorizer accepts its access tokens as well as the app's,
+so a developer can sign in from a laptop (laidir-api `pnpm token`) and call `/v1` with Bruno. Its refresh tokens last
+12 hours. Tenant isolation is unchanged: the API only ever acts on the token's `sub`. Set `devtools_client = false` to remove it.
+
 ## Claude connector
 
 The MCP server sits behind Cognito. Cognito doesn't support Dynamic Client Registration, so Claude uses a

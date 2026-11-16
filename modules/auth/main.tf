@@ -173,3 +173,54 @@ resource "aws_cognito_managed_login_branding" "claude" {
   client_id                   = aws_cognito_user_pool_client.claude.id
   use_cognito_provided_values = true
 }
+
+# ---------------------------------------------------------------------------
+# Devtools client (optional): lets a developer get real tokens for testing /v1
+# from a laptop (laidir-api `pnpm token` + Bruno). Public, PKCE, loopback
+# redirect on a fixed port (Cognito matches redirect URIs exactly, ports included).
+# Same users and same /v1 rules as the app; the token is just issued to a
+# different client_id, which the /v1 authorizer is told to accept.
+# ---------------------------------------------------------------------------
+resource "aws_cognito_user_pool_client" "devtools" {
+  count = var.devtools_client ? 1 : 0
+
+  name         = "${var.name}-devtools"
+  user_pool_id = aws_cognito_user_pool.this.id
+
+  generate_secret = false
+
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_scopes                 = local.common_scopes
+  supported_identity_providers         = ["COGNITO"]
+  callback_urls                        = var.devtools_callback_urls
+  logout_urls                          = var.devtools_logout_urls
+
+  explicit_auth_flows = ["ALLOW_USER_SRP_AUTH"]
+
+  refresh_token_rotation {
+    feature                    = "ENABLED"
+    retry_grace_period_seconds = 10
+  }
+
+  # Short-lived on purpose: a testing session, not a standing credential.
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 12
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "hours"
+  }
+
+  enable_token_revocation       = true
+  prevent_user_existence_errors = "ENABLED"
+}
+
+resource "aws_cognito_managed_login_branding" "devtools" {
+  count = var.devtools_client ? 1 : 0
+
+  user_pool_id                = aws_cognito_user_pool.this.id
+  client_id                   = aws_cognito_user_pool_client.devtools[0].id
+  use_cognito_provided_values = true
+}
