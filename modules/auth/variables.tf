@@ -50,6 +50,29 @@ variable "claude_client_confidential" {
   default     = false
 }
 
+variable "devtools_client" {
+  description = "Create a public PKCE client with a localhost redirect, for testing the API with real tokens from a laptop."
+  type        = bool
+  default     = false
+}
+
+variable "devtools_callback_urls" {
+  description = "Redirect URIs for the devtools client. Must match the laidir-api `pnpm token` script exactly (port included)."
+  type        = list(string)
+  default     = ["http://localhost:8976/callback"]
+
+  validation {
+    condition     = alltrue([for u in var.devtools_callback_urls : startswith(u, "http://localhost:")])
+    error_message = "Devtools callback URLs must be http://localhost:<port>/... loopback URLs."
+  }
+}
+
+variable "devtools_logout_urls" {
+  description = "Sign-out redirect URIs for the devtools client."
+  type        = list(string)
+  default     = ["http://localhost:8976/logout"]
+}
+
 variable "ses_email_identity_arn" {
   description = "ARN of a verified SES identity to send auth emails from. Null uses Cognito's default sender (~50 emails/day)."
   type        = string

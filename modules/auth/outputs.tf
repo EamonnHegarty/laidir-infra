@@ -28,6 +28,11 @@ output "claude_client_id" {
   value       = aws_cognito_user_pool_client.claude.id
 }
 
+output "devtools_client_id" {
+  description = "App client ID for local API testing (null when devtools_client = false)."
+  value       = one(aws_cognito_user_pool_client.devtools[*].id)
+}
+
 output "claude_client_secret" {
   description = "Claude client secret (only when claude_client_confidential = true)."
   value       = aws_cognito_user_pool_client.claude.client_secret

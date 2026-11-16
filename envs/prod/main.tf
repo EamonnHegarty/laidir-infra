@@ -28,6 +28,8 @@ module "auth" {
   mobile_callback_urls       = var.mobile_callback_urls
   mobile_logout_urls         = var.mobile_logout_urls
   claude_client_confidential = var.claude_client_confidential
+  # Laptop testing of /v1 with real tokens (laidir-api `pnpm token`, Bruno collection).
+  devtools_client = true
 }
 
 # Both functions get the same table access (no Scan). Tenant isolation is
@@ -68,7 +70,8 @@ module "api_function" {
   log_retention_days       = 30
 
   environment = merge(local.common_env, {
-    MOBILE_CLIENT_ID = module.auth.mobile_client_id
+    MOBILE_CLIENT_ID   = module.auth.mobile_client_id
+    DEVTOOLS_CLIENT_ID = module.auth.devtools_client_id
   })
 }
 
@@ -93,9 +96,10 @@ module "mcp_function" {
 module "http_api" {
   source = "../../modules/http-api"
 
-  name         = local.name
-  jwt_issuer   = module.auth.issuer
-  jwt_audience = [module.auth.mobile_client_id]
+  name       = local.name
+  jwt_issuer = module.auth.issuer
+  # /v1 accepts access tokens issued to the app and to the devtools client (same users, same rules).
+  jwt_audience = compact([module.auth.mobile_client_id, module.auth.devtools_client_id])
 
   api_function = {
     name       = module.api_function.function_name

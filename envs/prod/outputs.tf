@@ -18,6 +18,11 @@ output "mobile_client_id" {
   value       = module.auth.mobile_client_id
 }
 
+output "devtools_client_id" {
+  description = "Cognito app client ID for testing /v1 from a laptop (laidir-api `pnpm token`)."
+  value       = module.auth.devtools_client_id
+}
+
 output "cognito_issuer" {
   description = "OIDC issuer URL."
   value       = module.auth.issuer
