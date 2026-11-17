@@ -128,6 +128,16 @@ module "http_api" {
   log_retention_days = 30
 }
 
+# The MCP URL as a Cognito resource server, for RFC 8707 resource binding. Claude sends
+# `resource=<mcp_url>` when it signs in; without a resource server with that identifier Cognito
+# accepts the authorize request but then refuses the code exchange (invalid_grant). With it,
+# Claude's access tokens carry aud = <mcp_url>, which the MCP server checks. No custom scopes.
+resource "aws_cognito_resource_server" "mcp" {
+  user_pool_id = module.auth.user_pool_id
+  identifier   = module.http_api.mcp_url
+  name         = "${local.name}-mcp"
+}
+
 module "observability" {
   source = "../../modules/observability"
 
