@@ -91,6 +91,19 @@ data "aws_iam_policy_document" "workload_boundary" {
     ]
     resources = ["*"]
   }
+
+  # Account deletion (Play requires it): the api Lambda signs a user out everywhere and deletes
+  # their Cognito user, only ever the caller's own (the sub from the verified token). The role's own
+  # policy narrows this to the one user pool.
+  statement {
+    sid    = "AccountDeletion"
+    effect = "Allow"
+    actions = [
+      "cognito-idp:AdminUserGlobalSignOut",
+      "cognito-idp:AdminDeleteUser",
+    ]
+    resources = ["arn:aws:cognito-idp:${var.region}:${var.account_id}:userpool/*"]
+  }
 }
 
 resource "aws_iam_policy" "workload_boundary" {
