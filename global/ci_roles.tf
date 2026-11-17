@@ -264,6 +264,9 @@ data "aws_iam_policy_document" "apply_writes" {
       "cognito-idp:CreateManagedLoginBranding",
       "cognito-idp:UpdateManagedLoginBranding",
       "cognito-idp:DeleteManagedLoginBranding",
+      "cognito-idp:CreateResourceServer",
+      "cognito-idp:UpdateResourceServer",
+      "cognito-idp:DeleteResourceServer",
       "cognito-idp:TagResource",
       "cognito-idp:UntagResource",
     ]
