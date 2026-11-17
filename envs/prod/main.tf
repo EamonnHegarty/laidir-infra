@@ -51,6 +51,21 @@ data "aws_iam_policy_document" "table_access" {
   }
 }
 
+# The api function also handles DELETE /v1/account: sign the caller out everywhere, then delete
+# their Cognito user (after their data). Only on this pool; the code only ever passes the token's sub.
+data "aws_iam_policy_document" "api_access" {
+  source_policy_documents = [data.aws_iam_policy_document.table_access.json]
+
+  statement {
+    sid = "AccountDeletion"
+    actions = [
+      "cognito-idp:AdminUserGlobalSignOut",
+      "cognito-idp:AdminDeleteUser",
+    ]
+    resources = [module.auth.user_pool_arn]
+  }
+}
+
 locals {
   common_env = {
     TABLE_NAME     = module.table.name
@@ -66,7 +81,7 @@ module "api_function" {
   name                     = "${local.name}-api"
   description              = "Láidir REST API (/v1). Code deployed by laidir-api CI."
   permissions_boundary_arn = data.aws_iam_policy.workload_boundary.arn
-  policy_json              = data.aws_iam_policy_document.table_access.json
+  policy_json              = data.aws_iam_policy_document.api_access.json
   log_retention_days       = 30
 
   environment = merge(local.common_env, {
