@@ -55,7 +55,7 @@ variable "environments" {
 variable "lambda_functions" {
   description = "Short names of the Lambda functions per environment that the API repo may update (full name: laidir-<env>-<fn>)."
   type        = list(string)
-  default     = ["api", "mcp"]
+  default     = ["api", "mcp", "signup"]
 }
 
 variable "alert_email" {

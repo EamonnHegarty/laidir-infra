@@ -26,6 +26,12 @@ variable "allow_self_signup" {
   default     = true
 }
 
+variable "pre_sign_up_lambda_arn" {
+  description = "Lambda run before every sign-up (e.g. to limit who can sign up). Null for none."
+  type        = string
+  default     = null
+}
+
 variable "domain_prefix" {
   description = "Cognito hosted domain prefix. Defaults to <name>-<hash of account id>."
   type        = string

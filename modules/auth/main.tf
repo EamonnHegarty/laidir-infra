@@ -34,6 +34,13 @@ resource "aws_cognito_user_pool" "this" {
     allow_admin_create_user_only = !var.allow_self_signup
   }
 
+  dynamic "lambda_config" {
+    for_each = var.pre_sign_up_lambda_arn == null ? [] : [1]
+    content {
+      pre_sign_up = var.pre_sign_up_lambda_arn
+    }
+  }
+
   password_policy {
     minimum_length                   = 12
     require_lowercase                = true
