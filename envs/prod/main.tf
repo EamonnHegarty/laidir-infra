@@ -22,9 +22,10 @@ module "auth" {
   name                = local.name
   user_pool_tier      = "ESSENTIALS"
   deletion_protection = true
-  # Invite-only until public launch: blocks bot sign-ups. Invite users with
-  # `aws cognito-idp admin-create-user` (see README). Flip to true to open sign-up.
-  allow_self_signup          = false
+  # Self sign-up is open, but the signup function only lets it through from the app's client and
+  # while there are fewer than local.max_users accounts. Invites (admin-create-user) still work.
+  allow_self_signup          = true
+  pre_sign_up_lambda_arn     = module.signup_function.arn
   mobile_callback_urls       = var.mobile_callback_urls
   mobile_logout_urls         = var.mobile_logout_urls
   claude_client_confidential = var.claude_client_confidential
@@ -106,6 +107,54 @@ module "mcp_function" {
     CLAUDE_CLIENT_ID = module.auth.claude_client_id
     AUTH_DOMAIN      = module.auth.auth_domain
   })
+}
+
+# Pre sign-up check for Cognito. The allowed client is passed by NAME, not ID: the ID would make a
+# cycle (pool -> this function -> client -> pool). The function looks the name up at sign-up time.
+locals {
+  max_users = 30
+}
+
+module "signup_function" {
+  source = "../../modules/lambda-function"
+
+  name                     = "${local.name}-signup"
+  description              = "Cognito pre sign-up check: app client only, at most ${local.max_users} accounts. Code deployed by laidir-api CI."
+  permissions_boundary_arn = data.aws_iam_policy.workload_boundary.arn
+  memory_size              = 128
+  timeout                  = 5 # Cognito waits at most 5 s for a trigger
+  log_retention_days       = 30
+
+  environment = {
+    ALLOWED_CLIENT_NAME = "${local.name}-mobile"
+    MAX_USERS           = tostring(local.max_users)
+  }
+}
+
+# Kept out of the module so the pool ARN doesn't feed back into the function (the pool needs its ARN).
+data "aws_iam_policy_document" "signup_access" {
+  statement {
+    sid = "SignupCheck"
+    actions = [
+      "cognito-idp:DescribeUserPoolClient",
+      "cognito-idp:ListUsers",
+    ]
+    resources = [module.auth.user_pool_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "signup_access" {
+  name   = "${local.name}-signup-cognito"
+  role   = module.signup_function.role_name
+  policy = data.aws_iam_policy_document.signup_access.json
+}
+
+resource "aws_lambda_permission" "cognito_signup" {
+  statement_id  = "AllowCognitoPreSignUp"
+  action        = "lambda:InvokeFunction"
+  function_name = module.signup_function.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = module.auth.user_pool_arn
 }
 
 module "http_api" {

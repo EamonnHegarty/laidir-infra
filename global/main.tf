@@ -104,6 +104,18 @@ data "aws_iam_policy_document" "workload_boundary" {
     ]
     resources = ["arn:aws:cognito-idp:${var.region}:${var.account_id}:userpool/*"]
   }
+
+  # Sign-up check (pre sign-up trigger): which app client is signing someone up, and how many
+  # accounts exist. Read-only; the role's own policy narrows it to the one user pool.
+  statement {
+    sid    = "SignupCheck"
+    effect = "Allow"
+    actions = [
+      "cognito-idp:DescribeUserPoolClient",
+      "cognito-idp:ListUsers",
+    ]
+    resources = ["arn:aws:cognito-idp:${var.region}:${var.account_id}:userpool/*"]
+  }
 }
 
 resource "aws_iam_policy" "workload_boundary" {
